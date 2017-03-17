@@ -4,14 +4,10 @@
 #'   The user can use query argument
 #'   The data from query will be save in a folder: project/data.category
 #' @param query A query for GDCquery function
-#' @param token.file Token file to download controled data (only for method = "client")
+#' @param token GDC token. Check function gdc_token in GenomicDataCommons package
 #' @param method Uses the API (POST method) or gdc client tool. Options "api", "client".
 #' API is faster, but the data might get corrupted in the download, and it might need to be executed again
 #' @param directory Directory/Folder where the data was downloaded. Default: GDCdata
-#' @param chunks.per.download This will make the API method only download n (chunks.per.download) files at a time.
-#' This may reduce the download problems when the data size is too large. Expected a integer number (example chunks.per.download = 6)
-#' @importFrom tools md5sum
-#' @importFrom utils untar
 #' @import httr
 #' @export
 #' @examples
@@ -41,7 +37,7 @@
 #' }
 #' @return Shows the output from the GDC transfer tools
 GDCdownload <- function(query,
-                        token.file,
+                        token = NULL,
                         method = "api",
                         directory = "GDCdata",
                         chunks.per.download = NULL) {
@@ -49,7 +45,7 @@ GDCdownload <- function(query,
     if(missing(query)) stop("Please set query argument")
 
     if(!(method %in% c("api","client"))) stop("method arguments possible values are: 'api' or 'client'")
-
+    if(Sys.info()[grep("machine", names(Sys.info()))] == "x86") method <- "api"
     manifest <- query$results[[1]][,c("file_id","file_name","md5sum","file_size","state")]
     colnames(manifest) <- c("id","filename","md5","size","state")
 
@@ -85,21 +81,34 @@ GDCdownload <- function(query,
         result = tryCatch({
             dir.create(destdir,showWarnings = FALSE, recursive = TRUE)
             tmp = tempdir()
-            suppressWarnings({
-                fnames <- bplapply(manifest$id,gdcdata,
-                                   destination_dir = tmp,
-                                   overwrite = FALSE,
-                                   BPPARAM = MulticoreParam(progressbar=TRUE))
-            })
+            if(method == "api"){
+                suppressWarnings({
+                    fnames <- bplapply(manifest$id,
+                                       function(x){
+                                           gdcdata(
+                                               uuids = x,
+                                               destination_dir = file.path(tmp,x),
+                                               token = token,
+                                               overwrite = FALSE)
+                                       },
+                                       BPPARAM = MulticoreParam(progressbar=TRUE))
+                })
+            } else {
+                GDCclientInstall()
+                mfile = tempfile()
+                write.table(manifest,mfile,
+                            col.names=TRUE, row.names=FALSE, quote=FALSE,sep="\t")
+                transfer(mfile,  destination_dir = tmp, gdc_client='gdc-client',  token = token)
+            }
         }, warning = function(w) {
         }, error = function(e) {
         }, finally = {
             # moving the file to make it more organized
             message("Moving files to ", destdir)
             ddply(manifest, 1,
-                     function(x) {
-                         move(file.path(tmp,x$filename),file.path(destdir,x$id,x$filename))
-                     }, .progress = "text", .parallel = FALSE)
+                  function(x) {
+                      move(file.path(tmp,x$id),file.path(destdir,x$id))
+                  }, .progress = "text", .parallel = FALSE)
         })
     }
 }
