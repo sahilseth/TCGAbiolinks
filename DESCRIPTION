@@ -46,6 +46,7 @@ Imports:
     gplots,
     ggplot2,
     ggthemes,
+    GenomicDataCommons,
     survival,
     stringr (>= 1.0.0),
     IRanges,

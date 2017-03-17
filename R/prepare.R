@@ -47,7 +47,7 @@
 #' }
 #' @return A summarizedExperiment or a data.frame
 #' @importFrom  S4Vectors DataFrame
-#' @importFrom data.table setcolorder setnames
+#' @importFrom data.table setcolorder setnames fread
 #' @importFrom GenomicRanges GRanges
 #' @importFrom IRanges IRanges
 GDCprepare <- function(query,

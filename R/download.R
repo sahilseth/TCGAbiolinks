@@ -8,7 +8,6 @@
 #' @param method Uses the API (POST method) or gdc client tool. Options "api", "client".
 #' API is faster, but the data might get corrupted in the download, and it might need to be executed again
 #' @param directory Directory/Folder where the data was downloaded. Default: GDCdata
-#' @import httr
 #' @export
 #' @examples
 #' query <- GDCquery(project = "TCGA-ACC",

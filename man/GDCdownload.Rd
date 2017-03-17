@@ -4,21 +4,18 @@
 \alias{GDCdownload}
 \title{Download GDC data}
 \usage{
-GDCdownload(query, token.file, method = "api", directory = "GDCdata",
+GDCdownload(query, token = NULL, method = "api", directory = "GDCdata",
   chunks.per.download = NULL)
 }
 \arguments{
 \item{query}{A query for GDCquery function}
 
-\item{token.file}{Token file to download controled data (only for method = "client")}
+\item{token}{GDC token. Check function gdc_token in GenomicDataCommons package}
 
 \item{method}{Uses the API (POST method) or gdc client tool. Options "api", "client".
 API is faster, but the data might get corrupted in the download, and it might need to be executed again}
 
 \item{directory}{Directory/Folder where the data was downloaded. Default: GDCdata}
-
-\item{chunks.per.download}{This will make the API method only download n (chunks.per.download) files at a time.
-This may reduce the download problems when the data size is too large. Expected a integer number (example chunks.per.download = 6)}
 }
 \value{
 Shows the output from the GDC transfer tools
@@ -35,7 +32,7 @@ query <- GDCquery(project = "TCGA-ACC",
                  file.type = "hg19.seg",
                  barcode = c("TCGA-OR-A5LR-01A-11D-A29H-01", "TCGA-OR-A5LJ-10A-01D-A29K-01"))
 # data will be saved in  GDCdata/TCGA-ACC/legacy/Copy_number_variation/Copy_number_segmentation
-GDCdownload(query, method = "api")
+GDCdownload(query)
 query <- GDCquery(project = "TARGET-AML",
                   data.category = "Transcriptome Profiling",
                   data.type = "miRNA Expression Quantification",

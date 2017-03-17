@@ -613,16 +613,16 @@ The arguments that will be used to filter the data are:
 * pipelines: Four separate variant calling pipelines are implemented for GDC data harmonization. Options: muse, varscan2, somaticsniper, mutect. 
 
 ```{r, eval = FALSE}
-acc.muse.maf <- GDCquery_Maf("ACC", pipelines = "muse")
-acc.varscan2.maf <- GDCquery_Maf("ACC", pipelines = "varscan2")
-acc.somaticsniper.maf <- GDCquery_Maf("ACC", pipelines = "somaticsniper")
-acc.mutect.maf <- GDCquery_Maf("ACC", pipelines = "mutect")
+acc.muse.maf <- GDCquery_maf("ACC", pipelines = "muse")
+acc.varscan2.maf <- GDCquery_maf("ACC", pipelines = "varscan2")
+acc.somaticsniper.maf <- GDCquery_maf("ACC", pipelines = "somaticsniper")
+acc.mutect.maf <- GDCquery_maf("ACC", pipelines = "mutect")
 ```
 
 This mutation data can be visualized through a oncoprint from the  [ComplexHeatmap](http://bioconductor.org/packages/ComplexHeatmap/) package [@ref23].
 
 ```{r, eval=FALSE, message=FALSE, warning=FALSE}
-mut <- GDCquery_Maf("ACC", pipelines = "mutect2")
+mut <- GDCquery_maf("ACC", pipelines = "mutect2")
 clin <- GDCquery_clinic("TCGA-ACC","clinical")
 clin <- clin[,c("bcr_patient_barcode","disease","gender","tumor_stage","race","vital_status")]
 TCGAvisualize_oncoprint(mut = mut, genes = mut$Hugo_Symbol[1:20],
@@ -1584,7 +1584,7 @@ uses the [ComplexHeatmap](http://bioconductor.org/packages/ComplexHeatmap/) to c
 * **label.title** Title of the label
 
 ```{r, eval=FALSE, message=FALSE, warning=FALSE}
-mut <- GDCquery_Maf(tumor = "ACC", pipelines = "muse")
+mut <- GDCquery_maf(tumor = "ACC", pipelines = "muse")
 clin <- GDCquery_clinic("TCGA-ACC","clinical")
 clin <- clin[,c("bcr_patient_barcode","disease","gender","tumor_stage","race","vital_status")]
 TCGAvisualize_oncoprint(mut = mut, genes = mut$Hugo_Symbol[1:20],
@@ -2317,7 +2317,7 @@ grid.raster(img)
 Finally, we will take a look in the mutation genes. We will first download the maf file
 with `TCGAquery_maf`. In this example we will investigate the gene "ATRX".
 ```{r,eval=FALSE,echo=TRUE,message=FALSE,warning=FALSE}
-LGGmut <- GDCquery_Maf(tumor = "LGG", pipelines = "muse")
+LGGmut <- GDCquery_maf(tumor = "LGG", pipelines = "muse")
 # Selecting gene
 mRNAsel <- "ATRX"
 LGGselected <- LGGmut[LGGmut$Hugo_Symbol == mRNAsel,]
