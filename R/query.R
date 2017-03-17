@@ -451,7 +451,6 @@ getBarcodeDefinition <- function(type = "TCGA"){
     return(aux)
 }
 
-
 #' @title Retrieve open access maf files from GDC server
 #' @description
 #'   GDCquery_Maf uses the following guide to download maf files
@@ -463,33 +462,26 @@ getBarcodeDefinition <- function(type = "TCGA"){
 #' @param save.csv Write maf file into a csv document
 #' @param directory Directory/Folder where the data will downloaded. Default: GDCdata
 #' @export
-#' @importFrom data.table fread
-#' @import readr stringr
-#' @importFrom downloader download
-#' @importFrom R.utils gunzip
-#' @importFrom tools md5sum
+#' @importFrom GenomicDataCommons files manifest gdcdata
 #' @examples
-#' acc.muse.maf <- GDCquery_Maf("ACC", pipelines = "muse")
+#' acc.muse.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "muse")
 #' \dontrun{
-#'   acc.varscan2.maf <- GDCquery_Maf("ACC", pipelines = "varscan2")
-#'    acc.somaticsniper.maf <- GDCquery_Maf("ACC", pipelines = "somaticsniper")
-#'    acc.mutect.maf <- GDCquery_Maf("ACC", pipelines = "mutect2")
+#'   acc.varscan2.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "varscan2")
+#'    acc.somaticsniper.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "somaticsniper")
+#'    acc.mutect.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "mutect2")
 #' }
 #' @return A data frame with the maf file information
-GDCquery_Maf <- function(tumor, save.csv= FALSE, directory = "GDCdata", pipelines = NULL){
+GDCquery_Maf <- function(project,
+                         pipelines = NULL,
+                         save.csv = FALSE,
+                         directory = "GDCdata"
+){
 
     if(is.null(pipelines)) stop("Please select the pipeline argument (muse, varscan2, somaticsniper, mutect2)")
-    if(grepl("varscan",pipelines, ignore.case = TRUE)) {
-        workflow.type <- "VarScan2 Variant Aggregation and Masking"
-    } else if(pipelines == "muse") {
-        workflow.type <- "MuSE Variant Aggregation and Masking"
-    } else if(pipelines == "somaticsniper") {
-        workflow.type <- "SomaticSniper Variant Aggregation and Masking"
-    } else if(grepl("mutect",pipelines, ignore.case = TRUE)) {
-        workflow.type <-  "MuTect2 Variant Aggregation and Masking"
-    } else {
+    if(!pipelines %in% c("muse", "varscan2", "somaticsniper", "mutect2", "mutect","varscan"))
         stop("Please select the pipeline argument (muse, varscan2, somaticsniper, mutect2)")
-    }
+    if(pipelines == "mutect2") pipelines <- "mutect"
+    if(pipelines == "varscan2") pipelines <- "varscan"
 
     #  Info to user
     message("============================================================================")
@@ -499,93 +491,40 @@ GDCquery_Maf <- function(tumor, save.csv= FALSE, directory = "GDCdata", pipeline
     message(" https://gdc.cancer.gov/about-gdc/variant-calling-gdc")
     message("============================================================================")
 
-    maf  = tryCatch({
-        query <- GDCquery(paste0("TCGA-",tumor), data.category = "Simple Nucleotide Variation", data.type = "Masked Somatic Mutation", workflow.type = workflow.type)
-        if(nrow(query$results[[1]]) == 0) stop("No MAF file found for this type of workflow")
-        GDCdownload(query, directory = directory, method = "api")
-        maf <- GDCprepare(query, directory = directory)
-        maf
-    }, error = function(e) {
-        # catch
-        root <- "https://gdc-api.nci.nih.gov/data/"
-        maf <- getURL("https://gdc-docs.nci.nih.gov/Data/Release_Notes/Manifests/GDC_open_MAFs_manifest.txt",
-                      fread,
-                      data.table = FALSE,
-                      verbose = FALSE,
-                      showProgress = FALSE)
-        maf$tumor <- unlist(lapply(maf$filename, function(x){unlist(str_split(x,"\\."))[2]}))
+    manifest = files() %>%
+        GenomicDataCommons::filter( ~ cases.project.project_id == project &
+                                        data_category == "Simple Nucleotide Variation" &
+                                        data_type == "Masked Somatic Mutation" &
+                                        access == "open") %>%
+        manifest()
+    manifest <- manifest[grepl(pipelines, manifest$filename),]
 
-        dir.create(directory, showWarnings = FALSE, recursive = TRUE)
-        # Check input
+    destdir <- file.path(directory, project, "harmonized",
+                         gsub(" ","_", "Simple Nucleotide Variation"),
+                         gsub(" ","_","Masked Somatic Mutation"))
+    dir.create(destdir,showWarnings = FALSE, recursive = TRUE)
 
-        if (!any(grepl(tumor,maf$tumor))) stop(paste0("Please, set a valid tumor argument. Possible values:\n => ",
-                                                      paste(sort(maf$tumor),collapse = "\n => ")))
-
-        selected <- maf[grepl(tumor,maf$tumor,ignore.case = TRUE),]
-
-        if(is.windows()) mode <- "wb" else  mode <- "w"
-        # Download maf
-        repeat{
-            if (!file.exists(file.path(directory,selected$filename))){
-                getURL(file.path(root,selected$id),download,
-                       destfile = file.path(directory,selected$filename),
-                       mode = mode)
-            }
-            # check integrity
-            if(md5sum(file.path(directory,selected$filename)) == selected$md5) break
-            unlink(file.path(directory,selected$filename))
-            message("The data downloaded might be corrupted. We will download it again")
-        }
-
-        # uncompress file
-        file <- gsub(".gz","",file.path(directory,selected$filename))
-        if (!file.exists(file)) gunzip(file.path(directory,selected$filename), remove = FALSE)
-
-        # Is there a better way??
-        ret <- read_tsv(file,
-                        comment = "#",
-                        col_types = cols(
-                            Entrez_Gene_Id = col_integer(),
-                            Start_Position = col_integer(),
-                            End_Position = col_integer(),
-                            t_depth = col_integer(),
-                            t_ref_count = col_integer(),
-                            t_alt_count = col_integer(),
-                            n_depth = col_integer(),
-                            ALLELE_NUM = col_integer(),
-                            TRANSCRIPT_STRAND = col_integer(),
-                            PICK = col_integer(),
-                            TSL = col_integer(),
-                            HGVS_OFFSET = col_integer(),
-                            MINIMISED = col_integer()),
-                        progress = TRUE)
-        if(ncol(ret) == 1) ret <- read_csv(file,
-                                           comment = "#",
-                                           col_types = cols(
-                                               Entrez_Gene_Id = col_integer(),
-                                               Start_Position = col_integer(),
-                                               End_Position = col_integer(),
-                                               t_depth = col_integer(),
-                                               t_ref_count = col_integer(),
-                                               t_alt_count = col_integer(),
-                                               n_depth = col_integer(),
-                                               ALLELE_NUM = col_integer(),
-                                               TRANSCRIPT_STRAND = col_integer(),
-                                               PICK = col_integer(),
-                                               TSL = col_integer(),
-                                               HGVS_OFFSET = col_integer(),
-                                               MINIMISED = col_integer()),
-                                           progress = TRUE)
-        ret
+    suppressWarnings({
+        fnames <- bplapply(manifest$id,gdcdata,
+                           destination_dir=destdir,
+                           overwrite = TRUE,
+                           BPPARAM = MulticoreParam(progressbar=TRUE))
     })
-
-
-
+    suppressMessages({
+        maf <- readr::read_delim(unlist(fnames),
+                                 delim = "\t",
+                                 escape_double = FALSE,
+                                 comment = "#",
+                                 trim_ws = TRUE,progress = TRUE)
+    })
+    names(maf) <- basename(unlist(fnames))
     if(save.csv) {
-        fout <- file.path(directory,paste0(query$project,"_maf.csv"))
+        fout <- file.path(directory,paste0(project,"_maf.csv"))
         write_csv(maf, fout)
         message(paste0("File created: ", fout))
     }
     return(maf)
 }
+
+
 

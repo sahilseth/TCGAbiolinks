@@ -4,19 +4,19 @@
 \alias{GDCquery_Maf}
 \title{Retrieve open access maf files from GDC server}
 \usage{
-GDCquery_Maf(tumor, save.csv = FALSE, directory = "GDCdata",
-  pipelines = NULL)
+GDCquery_Maf(project, pipelines = NULL, save.csv = FALSE,
+  directory = "GDCdata")
 }
 \arguments{
-\item{tumor}{a valid tumor}
+\item{pipelines}{Four separate variant calling pipelines are implemented for GDC data harmonization.
+Options: muse, varscan2, somaticsniper, mutect2. For more information:
+https://gdc-docs.nci.nih.gov/Data/Bioinformatics_Pipelines/DNA_Seq_Variant_Calling_Pipeline/}
 
 \item{save.csv}{Write maf file into a csv document}
 
 \item{directory}{Directory/Folder where the data will downloaded. Default: GDCdata}
 
-\item{pipelines}{Four separate variant calling pipelines are implemented for GDC data harmonization.
-Options: muse, varscan2, somaticsniper, mutect2. For more information:
-https://gdc-docs.nci.nih.gov/Data/Bioinformatics_Pipelines/DNA_Seq_Variant_Calling_Pipeline/}
+\item{tumor}{a valid tumor}
 }
 \value{
 A data frame with the maf file information
@@ -26,10 +26,10 @@ GDCquery_Maf uses the following guide to download maf files
   https://gdc-docs.nci.nih.gov/Data/Release_Notes/Data_Release_Notes/
 }
 \examples{
-acc.muse.maf <- GDCquery_Maf("ACC", pipelines = "muse")
+acc.muse.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "muse")
 \dontrun{
-  acc.varscan2.maf <- GDCquery_Maf("ACC", pipelines = "varscan2")
-   acc.somaticsniper.maf <- GDCquery_Maf("ACC", pipelines = "somaticsniper")
-   acc.mutect.maf <- GDCquery_Maf("ACC", pipelines = "mutect2")
+  acc.varscan2.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "varscan2")
+   acc.somaticsniper.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "somaticsniper")
+   acc.mutect.maf <- GDCquery_Maf("TCGA-ACC", pipelines = "mutect2")
 }
 }
