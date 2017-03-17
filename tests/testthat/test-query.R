@@ -118,9 +118,9 @@ test_that("GDCquery can filter by access level", {
 })
 
 test_that("GDCquery_maf works", {
-    acc.maf <- GDCquery_maf("TCGA-ACC",pipelines = "muse")
+    acc.maf <- GDCquery_maf("TCGA-CHOL",pipelines = "muse")
     expect_true(nrow(acc.maf) > 0)
-    acc.maf <- GDCquery_maf("TCGA-ACC", directory = "maf", pipelines = "muse")
+    acc.maf <- GDCquery_maf("TCGA-CHOL", directory = "maf", pipelines = "muse")
     expect_true(nrow(acc.maf) > 0)
     unlink("GDCdata",recursive = TRUE, force = TRUE)
     unlink("maf",recursive = TRUE, force = TRUE)
