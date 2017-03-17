@@ -526,7 +526,6 @@ GDCquery_maf <- function(project,
                                  comment = "#",
                                  trim_ws = TRUE,progress = TRUE)
     })
-    names(maf) <- basename(unlist(fnames))
     if(save.csv) {
         fout <- file.path(directory,paste0(project,"_maf.csv"))
         write_csv(maf, fout)
