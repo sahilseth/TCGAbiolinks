@@ -181,7 +181,6 @@ move <- function(from, to) {
         todir <- dirname(to)
         if (!isTRUE(file.info(todir)$isdir)) dir.create(todir, recursive=TRUE,showWarnings = FALSE)
         file.rename(from = from,  to = to)
-        if(dirname(from) != ".") unlink(dirname(from),recursive=TRUE,force = TRUE)
     }
 }
 

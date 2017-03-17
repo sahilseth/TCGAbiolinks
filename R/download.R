@@ -21,7 +21,7 @@
 #'                  file.type = "hg19.seg",
 #'                  barcode = c("TCGA-OR-A5LR-01A-11D-A29H-01", "TCGA-OR-A5LJ-10A-01D-A29K-01"))
 #' # data will be saved in  GDCdata/TCGA-ACC/legacy/Copy_number_variation/Copy_number_segmentation
-#' GDCdownload(query, method = "api")
+#' GDCdownload(query)
 #' query <- GDCquery(project = "TARGET-AML",
 #'                   data.category = "Transcriptome Profiling",
 #'                   data.type = "miRNA Expression Quantification",
@@ -60,94 +60,50 @@ GDCdownload <- function(query,
         message("Downloading data for project ", proj)
         query.aux <- query
         query.aux$results[[1]] <- query.aux$results[[1]][query.aux$results[[1]]$project == proj,]
-        path <- unique(file.path(proj, source,
-                                 gsub(" ","_", query.aux$results[[1]]$data_category),
-                                 gsub(" ","_",query.aux$results[[1]]$data_type)))
-        path <- file.path(directory, path)
+        destdir <- unique(file.path(proj, source,
+                                    gsub(" ","_", query.aux$results[[1]]$data_category),
+                                    gsub(" ","_",query.aux$results[[1]]$data_type)))
+        destdir <- file.path(directory, destdir)
 
         # Check if the files were already downloaded by this package
 
-        files2Download <- !file.exists(file.path(path,manifest$id,manifest$filename))
+        files2Download <- !file.exists(file.path(destdir,manifest$id,manifest$filename))
         if(any(files2Download == FALSE)) {
             message("Of the ", nrow(manifest), " files for download ",
                     table(files2Download)["FALSE"] , " already exist.")
             if(any(files2Download == TRUE)) message("We will download only those that are missing ones.")
+            if(all(files2Download == FALSE)){
+                message("All samples have been already downloaded")
+                next
+            }
         }
         manifest <- manifest[files2Download,]
 
-        # There is a bug in the API, if the files has the same name it will not download correctly
-        # so method should be set to client if there are files with duplicated names
-        # However for clinical XML recurrent and primary are the same file. So we will ignore that case
-        if(nrow(manifest) > length(unique(manifest$filename))) method <- "client"
-        if(nrow(manifest) != 0 & method == "client") {
-            # There exists two options to download the data, using the query or using a manifest file
-            # The second option was created to let users use legacy data or the API to search
-
-            # This will find gdc clinet, if not installed it will install it
-            gdc.client.bin <- GDCclientInstall()
-
-            # Using the query argument we will organize the files to the user
-            # Creates a file with the gdc manifest format
-            write_delim(manifest,"gdc_manifest.txt",delim = "\t")
-
-            cmd <- paste0(gdc.client.bin, " download -m gdc_manifest.txt")
-
-            if(!missing(token.file)) cmd <- paste0(cmd," -t ", token.file)
-
-            # Download all the files in the manifest using gdc client
-            message(paste0("GDCdownload will download: ",
-                           humanReadableByteCount(sum(as.numeric(manifest$size)))))
-            message(paste0("Executing GDC client with the following command:\n",cmd))
-            result = tryCatch({
-                system(cmd)
-            }, warning = function(w) {
-            }, error = function(e) {
-            }, finally = {
-                # moving the file to make it more organized
-                for(i in manifest$id) move(i,file.path(path,i))
+        # Download all the files in the manifest using gdc client
+        message(paste0("GDCdownload will download: ",
+                       humanReadableByteCount(sum(as.numeric(manifest$size)))))
+        result = tryCatch({
+            dir.create(destdir,showWarnings = FALSE, recursive = TRUE)
+            tmp = tempdir()
+            suppressWarnings({
+                fnames <- bplapply(manifest$id,gdcdata,
+                                   destination_dir = tmp,
+                                   overwrite = FALSE,
+                                   BPPARAM = MulticoreParam(progressbar=TRUE))
             })
-
-        } else if (nrow(manifest) != 0 & method =="api"){
-            if(nrow(manifest) > 1) {
-                name <- paste0(gsub(" |:","_",date()),".tar.gz")
-                unlink(name)
-                message(paste0("GDCdownload will download ", nrow(manifest), " files. A total of " ,
-                               humanReadableByteCount(sum(as.numeric(manifest$size)))))
-            } else {
-                # case with one file only. This is not at tar.gz
-                name <- manifest$filename
-                message(paste0("GDCdownload will download: ",
-                               humanReadableByteCount(sum(as.numeric(manifest$size)))))
-            }
-
-            server <- ifelse(query$legacy,"https://gdc-api.nci.nih.gov/legacy/data/", "https://gdc-api.nci.nih.gov/data/")
-
-            if(is.null(chunks.per.download)) {
-                message(paste0("Downloading as: ", name))
-                tryCatch({
-                    GDCdownload.aux(server, manifest, name, path)
-                }, error = function(e) {
-                    message("Download failed. We will retry with smaller chuncks")
-                    # split in groups of 100 MB
-                    step <- ceiling(100000000/manifest$size[1])
-                    if(step == 0) step <- 1
-                    GDCdownload.by.chunk(server, manifest, name, path, step)
-                })
-            } else {
-                step <- chunks.per.download
-                # If error we will try another time.
-                tryCatch({
-                    GDCdownload.by.chunk(server, manifest, name, path, step)
-                }, error = function(e) {
-                    message("At least one of the chuncks download was not correct. We will retry")
-                    GDCdownload.by.chunk(server, manifest, name, path, step)
-                })
-            }
-        } else {
-            message("All samples have been already downloaded")
-        }
+        }, warning = function(w) {
+        }, error = function(e) {
+        }, finally = {
+            # moving the file to make it more organized
+            message("Moving files to ", destdir)
+            ddply(manifest, 1,
+                     function(x) {
+                         move(file.path(tmp,x$filename),file.path(destdir,x$id,x$filename))
+                     }, .progress = "text", .parallel = FALSE)
+        })
     }
 }
+
 
 GDCdownload.by.chunk <- function(server, manifest, name, path, step){
     for(idx in 0:ceiling(nrow(manifest)/step - 1)){
