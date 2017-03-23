@@ -796,7 +796,7 @@ readCopyNumberVariation <- function(files, cases){
         data <- read_tsv(file = files[i], col_names = TRUE, col_types = "ccnnnd")
         if(!missing(cases)) data$Sample <- cases[i]
         if(i == 1) df <- data
-        if(i != 1) df <- rbind(df, data, make.row.names = FALSE)
+        if(i != 1) df <- rbind(df, data)
         setTxtProgressBar(pb, i)
     }
     close(pb)
